@@ -77,7 +77,7 @@ function PlayerRow({
               style={{ left: `${left}%` }}
               title={`${item?.dname ?? p.key} @ ${formatTime(p.time)}`}
             >
-              <ItemIcon itemKey={p.key} size={22} title={`${item?.dname ?? p.key} @ ${formatTime(p.time)}`} />
+              <ItemIcon itemKey={p.key} imgPath={item?.img} size={22} title={`${item?.dname ?? p.key} @ ${formatTime(p.time)}`} />
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover/item:block bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap pointer-events-none z-20 border border-gray-700">
                 <div className="font-medium">{item?.dname ?? p.key}</div>
                 <div className="text-gray-400">{formatTime(p.time)}</div>

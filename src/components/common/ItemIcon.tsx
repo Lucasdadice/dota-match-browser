@@ -1,11 +1,14 @@
+const CDN = 'https://cdn.cloudflare.steamstatic.com'
+
 interface Props {
   itemKey: string
+  imgPath?: string  // /apps/dota2/... path from OpenDota constants — preferred over key
   size?: number
   title?: string
   className?: string
 }
 
-export function ItemIcon({ itemKey, size = 28, title, className = '' }: Props) {
+export function ItemIcon({ itemKey, imgPath, size = 28, title, className = '' }: Props) {
   if (!itemKey || itemKey === '0') {
     return (
       <div
@@ -15,7 +18,9 @@ export function ItemIcon({ itemKey, size = 28, title, className = '' }: Props) {
     )
   }
 
-  const src = `https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/items/${itemKey}.png`
+  const src = imgPath
+    ? `${CDN}${imgPath}`
+    : `${CDN}/apps/dota2/images/dota_react/items/${itemKey}.png`
 
   return (
     <img

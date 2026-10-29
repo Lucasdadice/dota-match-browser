@@ -125,12 +125,7 @@ export function MatchPage() {
             </div>
           )}
           {panel === 'map' && (
-            <div>
-              <div className="text-xs text-gray-500 mb-4 uppercase tracking-wider">
-                Hero position heatmap (aggregate across full match)
-              </div>
-              <MapHeatmap match={match} heroMap={heroMap} />
-            </div>
+            <MapHeatmap match={match} heroMap={heroMap} itemMap={itemMap} />
           )}
         </div>
       </div>

@@ -12,12 +12,6 @@ interface Props {
 
 const ITEM_SLOTS = ['item_0', 'item_1', 'item_2', 'item_3', 'item_4', 'item_5'] as const
 
-function itemIdToKey(id: number, itemMap: Map<string, Item> | undefined): string {
-  if (!id) return '0'
-  const item = itemMap?.get(String(id))
-  return item?.img ? item.img.replace(/^.*\/(.+?)\.png$/, '$1') : String(id)
-}
-
 function PlayerRow({
   player,
   heroMap,
@@ -62,8 +56,9 @@ function PlayerRow({
         <div className="flex gap-0.5">
           {ITEM_SLOTS.map((slot) => {
             const itemId = player[slot]
-            const key = itemIdToKey(itemId, itemMap)
-            return <ItemIcon key={slot} itemKey={key} size={26} />
+            if (!itemId) return <ItemIcon key={slot} itemKey="0" size={26} />
+            const item = itemMap?.get(String(itemId))
+            return <ItemIcon key={slot} itemKey={String(itemId)} imgPath={item?.img} size={26} title={item?.dname} />
           })}
         </div>
       </td>

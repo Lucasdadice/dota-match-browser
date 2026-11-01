@@ -5,6 +5,18 @@ import { HeroIcon } from '../common/HeroIcon'
 import { ItemIcon } from '../common/ItemIcon'
 import { coordToSvg, lanePostToHeatPoints } from '../../utils/mapCoords'
 import { formatGold, formatTime, isRadiant } from '../../utils/formatters'
+import { isParserConfigured, useMatchPositions, type Positions } from '../../hooks/useMatchPositions'
+
+function slotToParserPlayerId(slot: number): number {
+  return slot < 128 ? slot : slot - 128 + 5
+}
+
+function positionAt(positions: Array<[number, number, number]>, second: number): [number, number] | null {
+  if (positions.length === 0) return null
+  const idx = Math.min(Math.max(0, Math.floor(second)), positions.length - 1)
+  const p = positions[idx]
+  return [p[1], p[2]]
+}
 
 interface Props {
   match: Match
@@ -39,11 +51,23 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
   const [visible, setVisible] = useState<Set<number>>(
     () => new Set(match.players.map((p) => p.player_slot)),
   )
+  const [liveEnabled, setLiveEnabled] = useState(false)
 
   const colorMap = useMemo(() => buildColorMap(match), [match])
   const currentMinute = Math.floor(currentSec / 60)
   const playersWithPos = match.players.filter((p) => p.lane_pos)
   const hasTimeData = match.players.some((p) => p.gold_t && p.gold_t.length > 0)
+
+  const positionsQuery = useMatchPositions(String(match.match_id), liveEnabled)
+  const positions = positionsQuery.data
+  const livePositionsByPlayerId = useMemo(() => {
+    if (!positions) return null
+    const map = new Map<number, Positions['players'][number]>()
+    for (const p of positions.players) map.set(p.playerId, p)
+    return map
+  }, [positions])
+  const showLive = liveEnabled && !!livePositionsByPlayerId
+  const parserConfigured = isParserConfigured()
 
   const radiantPlayers = match.players
     .filter((p) => isRadiant(p.player_slot))
@@ -62,7 +86,7 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
             type="range"
             min={0}
             max={match.duration}
-            step={30}
+            step={1}
             value={currentSec}
             onChange={(e) => setCurrentSec(Number(e.target.value))}
             className="flex-1 accent-indigo-500"
@@ -95,14 +119,18 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
                   'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/map/map_partial_foreground.png'
               }}
             />
-            {playersWithPos.length > 0 ? (
+            {playersWithPos.length === 0 && !showLive ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-gray-400 text-sm text-center px-6">
+                No position data.<br />Match may not be parsed by OpenDota.
+              </div>
+            ) : (
               <svg
                 className="absolute inset-0"
                 width={MAP_SIZE}
                 height={MAP_SIZE}
                 style={{ pointerEvents: 'none' }}
               >
-                {match.players
+                {!showLive && match.players
                   .filter((p) => p.lane_pos && visible.has(p.player_slot))
                   .map((player) => (
                     <HeroHeatLayer
@@ -112,13 +140,78 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
                       mapSize={MAP_SIZE}
                     />
                   ))}
+
+                {showLive && match.players
+                  .filter((p) => visible.has(p.player_slot))
+                  .map((player) => {
+                    const data = livePositionsByPlayerId!.get(slotToParserPlayerId(player.player_slot))
+                    if (!data) return null
+                    const pt = positionAt(data.positions, currentSec)
+                    if (!pt) return null
+                    const cx = coordToSvg(pt[0], 'x', MAP_SIZE)
+                    const cy = coordToSvg(pt[1], 'y', MAP_SIZE)
+                    const color = colorMap.get(player.player_slot) ?? '#fff'
+                    return (
+                      <g key={player.player_slot} style={{ transition: 'transform 0.1s linear' }}>
+                        <circle cx={cx} cy={cy} r={8} fill={color} fillOpacity={0.9} stroke="#000" strokeWidth={1.5} />
+                        <circle cx={cx} cy={cy} r={3} fill="#fff" />
+                      </g>
+                    )
+                  })}
               </svg>
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-gray-400 text-sm text-center px-6">
-                No position data.<br />Match may not be parsed by OpenDota.
+            )}
+
+            {liveEnabled && positionsQuery.isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-gray-200 text-sm text-center px-6">
+                <div>
+                  <div className="animate-pulse text-2xl mb-2">⟳</div>
+                  Fetching replay &amp; parsing positions…<br />
+                  <span className="text-xs text-gray-400">First time per match: ~15-20s. Cached after that.</span>
+                </div>
+              </div>
+            )}
+            {liveEnabled && positionsQuery.isError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-red-300 text-sm text-center px-6">
+                <div>
+                  <div className="font-medium mb-1">
+                    {(positionsQuery.error as Error & { code?: string }).code === 'replay_unavailable'
+                      ? 'Replay no longer on Valve servers'
+                      : 'Parser failed'}
+                  </div>
+                  <div className="text-xs text-red-400/80">
+                    {(positionsQuery.error as Error & { code?: string }).code === 'replay_unavailable'
+                      ? 'Valve expires replays ~2 weeks after the match. Heatmap is still available.'
+                      : String((positionsQuery.error as Error).message)}
+                  </div>
+                  <button onClick={() => setLiveEnabled(false)} className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 underline">
+                    Back to heatmap
+                  </button>
+                </div>
               </div>
             )}
           </div>
+
+          {/* Mode toggle */}
+          {parserConfigured && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLiveEnabled(!liveEnabled)}
+                disabled={positionsQuery.isLoading}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors disabled:opacity-50 ${
+                  showLive
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {showLive ? '● Live positions' : 'Enable live positions'}
+              </button>
+              {showLive && (
+                <span className="text-gray-600 text-xs">
+                  Parsed from replay · {positions?.players.length ?? 0} heroes
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Hero toggles */}
           <div className="flex flex-wrap gap-1.5">
@@ -147,8 +240,11 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
               )
             })}
           </div>
-          {playersWithPos.length > 0 && (
+          {playersWithPos.length > 0 && !showLive && (
             <p className="text-gray-700 text-xs">Heatmap shows full-game movement — not time-specific.</p>
+          )}
+          {showLive && (
+            <p className="text-gray-700 text-xs">Hero positions update in real time as you drag the slider.</p>
           )}
         </div>
 

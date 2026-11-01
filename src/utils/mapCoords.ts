@@ -16,14 +16,20 @@ export function lanePostToHeatPoints(lanePos: LanePos): HeatPoint[] {
   return points
 }
 
+// OpenDota lane_pos game coords: playable area spans 64..191.
+// Mapping: subtract 64 (offset to zero), scale by (mapSize/127), Y is flipped.
+// Source: odota/web src/utility.tsx gameCoordToUV
+const BASE_OFFSET = 64
+const COORD_SPAN = 127
+
 export function coordToSvg(
   coord: number,
   axis: 'x' | 'y',
   mapSize: number,
 ): number {
-  const normalized = coord / 255
+  const scale = mapSize / COORD_SPAN
   if (axis === 'y') {
-    return mapSize - normalized * mapSize
+    return (COORD_SPAN - (coord - BASE_OFFSET)) * scale
   }
-  return normalized * mapSize
+  return (coord - BASE_OFFSET) * scale
 }

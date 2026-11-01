@@ -109,8 +109,8 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
             style={{ width: MAP_SIZE, height: MAP_SIZE }}
           >
             <img
-              src="https://www.opendota.com/assets/images/dota2/map/minimap.jpg"
-              alt="Dota 2 minimap"
+              src="https://www.opendota.com/assets/images/dota2/map/detailed_740.jpg"
+              alt="Dota 2 minimap (7.40)"
               width={MAP_SIZE}
               height={MAP_SIZE}
               className="block"

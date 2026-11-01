@@ -109,28 +109,27 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
             style={{ width: MAP_SIZE, height: MAP_SIZE }}
           >
             <img
-              src="https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/maps/dota2_minimap_transparent.png"
+              src="https://www.opendota.com/assets/images/dota2/map/minimap.jpg"
               alt="Dota 2 minimap"
               width={MAP_SIZE}
               height={MAP_SIZE}
               className="block"
-              onError={(e) => {
-                ;(e.target as HTMLImageElement).src =
-                  'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/map/map_partial_foreground.png'
-              }}
             />
-            {playersWithPos.length === 0 && !showLive ? (
+            {playersWithPos.length === 0 && !showLive && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-gray-400 text-sm text-center px-6">
                 No position data.<br />Match may not be parsed by OpenDota.
               </div>
-            ) : (
+            )}
+
+            {/* Heatmap overlay (aggregate mode) */}
+            {!showLive && playersWithPos.length > 0 && (
               <svg
                 className="absolute inset-0"
                 width={MAP_SIZE}
                 height={MAP_SIZE}
                 style={{ pointerEvents: 'none' }}
               >
-                {!showLive && match.players
+                {match.players
                   .filter((p) => p.lane_pos && visible.has(p.player_slot))
                   .map((player) => (
                     <HeroHeatLayer
@@ -140,8 +139,13 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
                       mapSize={MAP_SIZE}
                     />
                   ))}
+              </svg>
+            )}
 
-                {showLive && match.players
+            {/* Live hero icons overlay (live mode) */}
+            {showLive && (
+              <div className="absolute inset-0 pointer-events-none">
+                {match.players
                   .filter((p) => visible.has(p.player_slot))
                   .map((player) => {
                     const data = livePositionsByPlayerId!.get(slotToParserPlayerId(player.player_slot))
@@ -151,14 +155,32 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
                     const cx = coordToSvg(pt[0], 'x', MAP_SIZE)
                     const cy = coordToSvg(pt[1], 'y', MAP_SIZE)
                     const color = colorMap.get(player.player_slot) ?? '#fff'
+                    const hero = heroMap?.get(player.hero_id)
+                    const ICON_SIZE = 30
                     return (
-                      <g key={player.player_slot} style={{ transition: 'transform 0.1s linear' }}>
-                        <circle cx={cx} cy={cy} r={8} fill={color} fillOpacity={0.9} stroke="#000" strokeWidth={1.5} />
-                        <circle cx={cx} cy={cy} r={3} fill="#fff" />
-                      </g>
+                      <div
+                        key={player.player_slot}
+                        className="absolute transition-[left,top] duration-100 ease-linear"
+                        style={{
+                          left: cx,
+                          top: cy,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      >
+                        <div
+                          className="rounded-md overflow-hidden"
+                          style={{
+                            width: ICON_SIZE,
+                            height: ICON_SIZE,
+                            boxShadow: `0 0 0 2px ${color}, 0 2px 6px rgba(0,0,0,0.6)`,
+                          }}
+                        >
+                          <HeroIcon hero={hero} size={ICON_SIZE} />
+                        </div>
+                      </div>
                     )
                   })}
-              </svg>
+              </div>
             )}
 
             {liveEnabled && positionsQuery.isLoading && (

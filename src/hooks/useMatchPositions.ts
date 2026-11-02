@@ -11,6 +11,14 @@ export interface Positions {
     heroName: string
     positions: Array<[number, number, number]> // [second, x, y]
   }>
+  buildings?: Array<{
+    type: 'tower' | 'barracks'
+    team: number // 2 = Radiant, 3 = Dire
+    x: number
+    y: number
+    destroyedAt: number | null
+    unitName?: string
+  }>
 }
 
 export interface PositionsError {

@@ -142,6 +142,48 @@ export function MapHeatmap({ match, heroMap, itemMap }: Props) {
               </svg>
             )}
 
+            {/* Buildings overlay (live mode) — hidden once destroyed */}
+            {showLive && positions?.buildings && positions.buildings.length > 0 && (
+              <svg
+                className="absolute inset-0 pointer-events-none"
+                width={MAP_SIZE}
+                height={MAP_SIZE}
+              >
+                {positions.buildings
+                  .filter((b) => b.destroyedAt == null || currentSec < b.destroyedAt)
+                  .map((b, i) => {
+                    const cx = coordToSvg(b.x, 'x', MAP_SIZE)
+                    const cy = coordToSvg(b.y, 'y', MAP_SIZE)
+                    const color = b.team === 2 ? '#10b981' : '#ef4444'
+                    if (b.type === 'tower') {
+                      return (
+                        <circle
+                          key={i}
+                          cx={cx}
+                          cy={cy}
+                          r={4.5}
+                          fill={color}
+                          stroke="#0f172a"
+                          strokeWidth={1.5}
+                        />
+                      )
+                    }
+                    return (
+                      <rect
+                        key={i}
+                        x={cx - 4}
+                        y={cy - 4}
+                        width={8}
+                        height={8}
+                        fill={color}
+                        stroke="#0f172a"
+                        strokeWidth={1.5}
+                      />
+                    )
+                  })}
+              </svg>
+            )}
+
             {/* Live hero icons overlay (live mode) */}
             {showLive && (
               <div className="absolute inset-0 pointer-events-none">
